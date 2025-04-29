@@ -5,7 +5,7 @@ import Header from '../components/Header'
 import TaskList from '../components/TaskList'
 import SettingsModal from '../components/SettingsModal'
 import PomodoroInfo from '../components/PomoInfo'
-import Report from '../components/Report' 
+import Report from '../components/Report'
 
 const alarmSound = typeof Audio !== 'undefined' ? new Audio('/finish-alarm.mp3') : null
 const startSound = typeof Audio !== 'undefined' ? new Audio('/alarm.wav') : null
@@ -23,7 +23,7 @@ export default function Home() {
   const [mode, setMode] = useState(() => localStorage.getItem('mode') || 'pomodoro')
   const [time, setTime] = useState(() => {
     const storedTime = localStorage.getItem('time')
-    return storedTime ? parseInt(storedTime) : modes[mode] * 60
+    return storedTime ? parseInt(storedTime) : (modes[mode] || 25) * 60
   })
 
   const [isRunning, setIsRunning] = useState(false)
@@ -33,8 +33,8 @@ export default function Home() {
   })
   const [activeTaskIndex, setActiveTaskIndex] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
-  const [showReport, setShowReport] = useState(false) 
-  const [timeData, setTimeData] = useState(() => { 
+  const [showReport, setShowReport] = useState(false)
+  const [timeData, setTimeData] = useState(() => {
     const savedData = localStorage.getItem('timeData')
     return savedData ? JSON.parse(savedData) : []
   })
@@ -53,7 +53,7 @@ export default function Home() {
     if (time === 0 && mode === 'pomodoro' && isRunning) {
       const now = new Date()
       const activeTask = tasks[activeTaskIndex]
-      
+
       setTimeData(prev => {
         const newData = [...prev, {
           date: now.toISOString(),
@@ -63,12 +63,11 @@ export default function Home() {
         }]
         return newData
       })
-      
+
       if (activeTask) {
-        const completedPomodoros = timeData.filter(entry => 
-          entry.taskId === activeTask.id
-        ).reduce((sum, entry) => sum + entry.pomodoros, 0) + 1
-        
+        const completedPomodoros = timeData.filter(entry => entry.taskId === activeTask.id)
+          .reduce((sum, entry) => sum + entry.pomodoros, 0) + 1
+
         if (completedPomodoros >= activeTask.estimate) {
           updateTask(activeTaskIndex, {
             completed: true,
@@ -93,7 +92,7 @@ export default function Home() {
   const addTask = (task) => {
     setTasks(prev => [...prev, {
       ...task,
-      id: Date.now(), 
+      id: Date.now(),
       completed: false,
       active: prev.length === 0
     }])
@@ -109,7 +108,7 @@ export default function Home() {
   }
 
   const updateTask = (index, updatedTask) => {
-    setTasks(prev => prev.map((task, i) => 
+    setTasks(prev => prev.map((task, i) =>
       i === index ? { ...task, ...updatedTask } : task
     ))
   }
@@ -117,14 +116,19 @@ export default function Home() {
   const setActiveTask = (index) => {
     setTasks(prev => prev.map((task, i) => ({
       ...task,
-      active: i === index,
-      completed: i === index ? !task.completed : task.completed
+      active: i === index
     })))
     setActiveTaskIndex(index)
   }
 
   const handleModeSwitch = () => {
-    setMode(prev => prev === 'pomodoro' ? 'short' : 'pomodoro')
+    if (mode === 'pomodoro') {
+      setMode('short')
+    } else if (mode === 'short') {
+      setMode('long')
+    } else {
+      setMode('pomodoro')
+    }
   }
 
   useEffect(() => {
@@ -135,7 +139,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!isRunning) return
-    
+
     const interval = setInterval(() => {
       setTime(prev => {
         if (prev <= 0) {
@@ -200,32 +204,23 @@ export default function Home() {
         progress={progress}
         mode={mode}
       />
-      
+
       <div className={`w-full max-w-130 px-4 sm:px-10 py-8 flex flex-col items-center rounded-lg transition-colors duration-700 ${
         mode === 'pomodoro' ? 'bg-white/10' :
         mode === 'short' ? 'bg-teal-200/20' :
         'bg-cyan-200/10'
       }`}>
-        
-        <div className="flex  sm:flex-row gap-3 w-full mb-6 justify-center">
-          <button
-            onClick={() => setMode('pomodoro')}
-            className={getModeButtonClass('pomodoro')}
-          >
+
+        <div className="flex sm:flex-row gap-3 w-full mb-6 justify-center">
+          <button onClick={() => setMode('pomodoro')} className={getModeButtonClass('pomodoro')}>
             <span className="sm:inline hidden">Pomodoro</span>
             <span className="inline sm:hidden">Pomo</span>
           </button>
-          <button
-            onClick={() => setMode('short')}
-            className={getModeButtonClass('short')}
-          >
+          <button onClick={() => setMode('short')} className={getModeButtonClass('short')}>
             <span className="sm:inline hidden">Short Break</span>
             <span className="inline sm:hidden">Short</span>
           </button>
-          <button
-            onClick={() => setMode('long')}
-            className={getModeButtonClass('long')}
-          >
+          <button onClick={() => setMode('long')} className={getModeButtonClass('long')}>
             <span className="sm:inline hidden">Long Break</span>
             <span className="inline sm:hidden">Long</span>
           </button>
@@ -256,9 +251,8 @@ export default function Home() {
                 className="absolute left-full ml-2 p-2 text-white hover:bg-white/20 rounded-full transition-colors"
                 aria-label="Skip to next mode"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="5 4 15 12 5 20 5 4"></polygon>
-                  <line x1="19" y1="5" x2="19" y2="19"></line>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                  <path fill="currentColor" d="M5 18L13 12L5 6V18Z" />
                 </svg>
               </button>
             )}
@@ -266,30 +260,35 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="mt-8 w-full max-w-md px-4">
-        <TaskList 
-          tasks={tasks} 
-          addTask={addTask} 
-          removeTask={removeTask}
-          updateTask={updateTask}
-          setActiveTask={setActiveTask}
-        />
-      </div>
-      <PomodoroInfo />
+      <TaskList 
+        tasks={tasks} 
+        onTaskClick={setActiveTask} 
+        onRemoveTask={removeTask} 
+        activeTaskIndex={activeTaskIndex} 
+        addTask={addTask} 
+      />
+
+      <PomodoroInfo 
+        modes={modes} 
+        mode={mode}
+        time={time} 
+        formatTime={formatTime} 
+        progress={progress}
+      />
 
       {showSettings && (
         <SettingsModal 
+          modes={modes}
+          onSave={handleSettingsChange}
           onClose={() => setShowSettings(false)}
-          pomodoro={modes.pomodoro}
-          shortBreak={modes.short}
-          longBreak={modes.long}
-          onSettingsChange={handleSettingsChange}
         />
       )}
 
       {showReport && (
         <Report 
-          yopish={() => setShowReport(false)}
+          timeData={timeData} 
+          tasks={tasks} 
+          onClose={() => setShowReport(false)}
         />
       )}
     </div>
